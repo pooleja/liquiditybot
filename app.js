@@ -98,15 +98,16 @@ authedClient.getAccount(Env.ACCOUNT_ID, function(error, response, data){
 
 });
 
+var hashedOrders = {};
+
 function createOrderHash(orders){
-  var hashed = {};
 
   for(var i = 0 ; i < Env.ORDER_COUNT; i++){
     item = orders[i];
-    hashed[item.id] = item;
+    hashedOrders[item.id] = item;
   }
 
-  return hashed;
+  return hashedOrders;
 }
 
 function listenForOrders(orders){
@@ -120,9 +121,7 @@ function listenForOrders(orders){
 
   websocket.on('message', function(data) {
 
-
-
-    var hashedOrders = createOrderHash(orders);
+    createOrderHash(orders);
 
     if(data.type == 'done'){
 
@@ -133,6 +132,7 @@ function listenForOrders(orders){
         console.log(data);
 
         var closedOrder = hashedOrders[data.order_id];
+        console.log("Closed Order: " + JSON.stringify(closedOrder));
 
         if(closedOrder.side == 'buy' ){
 
@@ -157,6 +157,7 @@ function listenForOrders(orders){
             // Add the new sell order to the existing order list
             orderToCreate.id = data.id;
             hashedOrders[data.id] = orderToCreate;
+            console.log("Created Order: " + JSON.stringify(orderToCreate));
 
             // Delete the closed order
             delete hashedOrders[closedOrder.id];
@@ -187,6 +188,7 @@ function listenForOrders(orders){
             // Add the new sell order to the existing order list
             orderToCreate.id = data.id;
             hashedOrders[data.id] = orderToCreate;
+            console.log("Created Order: " + JSON.stringify(orderToCreate));
 
             // Delete the closed order
             delete hashedOrders[closedOrder.id];
