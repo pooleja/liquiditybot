@@ -9,6 +9,8 @@
     "socket.io-client": "1.3.4",
     "coinbase-exchange" : "git+https://github.com/coinbase/coinbase-exchange-node.git",
     "async" : "0.9.0",
-    "console-stamp" : "0.1.5"
+    "console-stamp" : "0.1.5",
+    "mongoose" : "3.8.25",
+    "winston" : "0.9.0"
   }
 }

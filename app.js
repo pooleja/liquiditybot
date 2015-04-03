@@ -2,101 +2,130 @@ var Env = require('./config/env.js');
 var CoinbaseExchange = require('coinbase-exchange');
 var async = require('async');
 
-console.log("Getting available balance.");
+var mongoose = require('mongoose');
+mongoose.connect(Env.MONGO_CONNECTION_STRING);
+var Order = require('./models/order.js');
+
+var winston = require('winston');
+winston.add(winston.transports.File, { filename: 'app.log' });
+
+winston.log('info', "Getting available balance.");
 
 var authedClient = new CoinbaseExchange.AuthenticatedClient(Env.ACCESS_KEY, Env.SECRET_KEY, Env.PASSPHRASE_KEY, Env.REST_URL);
 
-authedClient.getAccount(Env.ACCOUNT_ID, function(error, response, data){
-
-  if (error || response.statusCode != 200) {
-    console.log("Error getting accounts: " + error);
-    console.log("Response: " + JSON.stringify(response));
-    return;
+// Clear all orders
+Order.remove({}, function(err){
+  if(err){
+    winston.log('error', "Error removing orders: " + error);
+    process.exit(-1);
   }
 
-  console.log("Account info: " + JSON.stringify(data));
+  authedClient.getAccount(Env.ACCOUNT_ID, function(error, response, data){
 
-  var available = Number(data.available);
+    if (error || response.statusCode != 200) {
+      winston.log('info', "Error getting accounts: " + error);
+      winston.log('info', "Response: " + JSON.stringify(response));
+      return;
+    }
 
-  // Subtract 1% for fees
-  available = available * 0.99;
+    winston.log('info', "Account info: " + JSON.stringify(data));
 
-  console.log("Amount available in account: $" + available);
+    var available = Number(data.available);
 
-  var amountPerOrder = available / Env.ORDER_COUNT;
+    // Subtract 1% for fees
+    available = available * 0.99;
 
-  console.log("Amount per buy order: " + amountPerOrder);
+    winston.log('info', "Amount available in account: $" + available);
 
-  authedClient.getProducts(function(error, response, data){
+    var amountPerOrder = available / Env.ORDER_COUNT;
 
-    console.log("Products: " + JSON.stringify(data));
+    winston.log('info', "Amount per buy order: " + amountPerOrder);
 
-    authedClient.getProductTicker(function(error, response, data){
+    authedClient.getProducts(function(error, response, data){
 
-      if (error || response.statusCode != 200) {
-        console.log("Error getting ticker: " + error);
-        console.log("Response: " + JSON.stringify(response));
-        return;
-      }
+      winston.log('info', "Products: " + JSON.stringify(data));
 
-      console.log(JSON.stringify(data));
+      authedClient.getProductTicker(function(error, response, data){
 
-      var currentPrice = Number(data.price);
-      console.log("Current market price: $" + currentPrice);
+        if (error || response.statusCode != 200) {
+          winston.log('info', "Error getting ticker: " + error);
+          winston.log('info', "Response: " + JSON.stringify(response));
+          return;
+        }
 
-      var startPrice = Math.floor( currentPrice );
-      console.log("Starting price: $" + startPrice);
+        winston.log('info', JSON.stringify(data));
 
-      var ordersToCreate = [ ];
+        var currentPrice = Number(data.price);
+        winston.log('info', "Current market price: $" + currentPrice);
 
-      for(var i = 0; i < Env.ORDER_COUNT ; i++){
+        var startPrice = Math.floor( currentPrice );
+        winston.log('info', "Starting price: $" + startPrice);
 
-        var orderPrice = startPrice - i;
-        var size = amountPerOrder / orderPrice ;
+        var ordersToCreate = [ ];
 
-        var orderToCreate = {
-          size : "" + size.toFixed(5),
-          price : "" + orderPrice.toFixed(5),
-          side : "buy",
-          product_id : "BTC-USD"
-        };
+        for(var i = 0; i < Env.ORDER_COUNT ; i++){
 
-        ordersToCreate.push(orderToCreate);
-      }
+          var orderPrice = startPrice - ( i * Env.GAP_AMOUNT) ;
+          var size = amountPerOrder / orderPrice ;
 
-      async.eachSeries(ordersToCreate, function(order, callback){
+          var orderToCreate = {
+            size : "" + size.toFixed(5),
+            price : "" + orderPrice.toFixed(5),
+            side : "buy",
+            product_id : "BTC-USD"
+          };
 
-        authedClient.buy(order, function(error, response, data){
+          ordersToCreate.push(orderToCreate);
+        }
 
-          if (error || response.statusCode != 200) {
-            console.log("Error creating buy order: " + error);
-            console.log("Response: " + JSON.stringify(response));
-            callback("Failed to place order");
+        async.eachSeries(ordersToCreate, function(order, callback){
+
+          authedClient.buy(order, function(error, response, data){
+
+            if (error || response.statusCode != 200) {
+              winston.log('info', "Error creating buy order: " + error);
+              winston.log('info', "Response: " + JSON.stringify(response));
+              callback("Failed to place order");
+            }
+
+            order.id = data.id;
+
+            Order(order).save(function(error){
+
+              if(error){
+                winston.log('error', "Failed to create order" + order.id + " with errro " + error);
+                callback(error);
+                return;
+              }
+
+              callback();
+            });
+
+          });
+
+        }, function(err){
+          if(err){
+            winston.log('info', 'Order creation failed: ' + err);
+          } else {
+
+            winston.log('info', "Finished creating orders");
+            winston.log('info', JSON.stringify(ordersToCreate[0]));
+
+            //listenForOrders(ordersToCreate);
+            process.exit();
           }
-
-          order.id = data.id;
-          callback();
-
         });
 
-      }, function(err){
-        if(err){
-          console.log('Order creation failed: ' + err);
-        } else {
 
-          console.log("Finished creating orders");
-          console.log(JSON.stringify(ordersToCreate[0]));
-
-          listenForOrders(ordersToCreate);
-        }
       });
-
 
     });
 
   });
 
+
 });
+
 
 var hashedOrders = {};
 
@@ -114,8 +143,8 @@ function listenForOrders(orders){
   var websocket = new CoinbaseExchange.WebsocketClient('BTC-USD', Env.SOCKET_URL);
   websocket.on('close', function(data){
 
-    console.log("Closing?");
-    console.log(JSON.stringify(data));
+    winston.log('info', "Closing?");
+    winston.log('info', JSON.stringify(data));
 
   });
 
@@ -129,19 +158,22 @@ function listenForOrders(orders){
 
       if(hashedOrders[data.order_id]){
 
-        console.log(data);
+        winston.log('info', "");
+        winston.log('info', "------------------------------------------------------------");
+        winston.log('info', (new Date()).toString());
+        winston.log('info', data);
 
         var closedOrder = hashedOrders[data.order_id];
-        console.log("Closed Order: " + JSON.stringify(closedOrder));
+        winston.log('info', "Closed Order: " + JSON.stringify(closedOrder));
 
         if(closedOrder.side == 'buy' ){
 
           // Create a sell order at old price + $1
-          console.log("Closed buy order found.  Creating new sell order at price + 1");
+          winston.log('info', "Closed buy order found.  Creating new sell order at price + 1");
 
           var orderToCreate = {
             size : closedOrder.size,
-            price : Number(closedOrder.price) + 1,
+            price : Number(closedOrder.price) + ( 1 * Env.GAP_AMOUNT) ,
             side : "sell",
             product_id : "BTC-USD"
           };
@@ -149,15 +181,14 @@ function listenForOrders(orders){
           authedClient.sell(orderToCreate, function(error, response, data){
 
             if (error || response.statusCode != 200) {
-              console.log("Error creating new sell order: " + error);
-              console.log("Response: " + JSON.stringify(response));
-              callback("Failed to place order");
+              winston.log('error', "Error creating new sell order: " + error);
+              winston.log('error', "Response: " + JSON.stringify(response));
             }
 
             // Add the new sell order to the existing order list
             orderToCreate.id = data.id;
             hashedOrders[data.id] = orderToCreate;
-            console.log("Created Order: " + JSON.stringify(orderToCreate));
+            winston.log('info', "Created Order: " + JSON.stringify(orderToCreate));
 
             // Delete the closed order
             delete hashedOrders[closedOrder.id];
@@ -168,11 +199,11 @@ function listenForOrders(orders){
         } else {
 
           // Create a buy order at old price - $1
-          console.log("Closed sell order found.  Creating new buy order at price - 1");
+          winston.log('info', "Closed sell order found.  Creating new buy order at price - 1");
 
           var orderToCreate = {
             size : closedOrder.size,
-            price : Number(closedOrder.price) - 1,
+            price : Number(closedOrder.price) - ( 1 * Env.GAP_AMOUNT) ,
             side : "buy",
             product_id : "BTC-USD"
           };
@@ -180,15 +211,14 @@ function listenForOrders(orders){
           authedClient.buy(orderToCreate, function(error, response, data){
 
             if (error || response.statusCode != 200) {
-              console.log("Error creating new buy order: " + error);
-              console.log("Response: " + JSON.stringify(response));
-              callback("Failed to place order");
+              winston.log('error', "Error creating new buy order: " + error);
+              winston.log('error', "Response: " + JSON.stringify(response));
             }
 
             // Add the new sell order to the existing order list
             orderToCreate.id = data.id;
             hashedOrders[data.id] = orderToCreate;
-            console.log("Created Order: " + JSON.stringify(orderToCreate));
+            winston.log('info', "Created Order: " + JSON.stringify(orderToCreate));
 
             // Delete the closed order
             delete hashedOrders[closedOrder.id];
