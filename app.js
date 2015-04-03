@@ -85,7 +85,7 @@ Order.remove({}, function(err){
             if (error || response.statusCode != 200) {
               winston.log('info', "Error creating buy order: " + error);
               winston.log('info', "Response: " + JSON.stringify(response));
-              callback("Failed to place order");
+              callback("Failed to place order: " + JSON.stringify(order));
             }
 
             order.id = data.id;

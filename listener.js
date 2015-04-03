@@ -17,6 +17,8 @@ websocket.on('close', function(data){
   winston.log('info', "Closing?");
   winston.log('info', JSON.stringify(data));
 
+  process.exit(-1);
+
 });
 
 winston.log('info', "Listening for messages...");
