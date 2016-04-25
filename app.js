@@ -13,27 +13,30 @@ winston.log('info', "Getting available balance.");
 
 var authedClient = new CoinbaseExchange.AuthenticatedClient(Env.ACCESS_KEY, Env.SECRET_KEY, Env.PASSPHRASE_KEY, Env.REST_URL);
 
-// Clear all orders
-Order.remove({}, function(err){
-  if(err){
-    winston.log('error', "Error removing orders: " + error);
-    process.exit(-1);
-  }
+if(Env.DELETE_PREVIOUS){
 
-  authedClient.getAccount(Env.ACCOUNT_ID, function(error, response, data){
-
-    if (error || response.statusCode != 200) {
-      winston.log('info', "Error getting accounts: " + error);
-      winston.log('info', "Response: " + JSON.stringify(response));
-      return;
+  // Clear all orders
+  Order.remove({}, function(err){
+    if(err){
+      winston.log('error', "Error removing orders: " + error);
+      process.exit(-1);
     }
 
-    winston.log('info', "Account info: " + JSON.stringify(data));
+    // Now create new orders
+    createBids();
 
-    var available = Number(data.available);
+  });
+} else {
 
+  // Create new orders without deleting old ones
+  createBids();
+
+}
+
+
+function createBids(){
     // Subtract 1% for fees
-    available = available * 0.99;
+    var available = Env.AMOUNT_USD * 0.99;
 
     winston.log('info', "Amount available in account: $" + available);
 
@@ -120,116 +123,4 @@ Order.remove({}, function(err){
       });
 
     });
-
-  });
-
-
-});
-
-
-var hashedOrders = {};
-
-function createOrderHash(orders){
-
-  for(var i = 0 ; i < Env.ORDER_COUNT; i++){
-    item = orders[i];
-    hashedOrders[item.id] = item;
-  }
-
-  return hashedOrders;
-}
-
-function listenForOrders(orders){
-  var websocket = new CoinbaseExchange.WebsocketClient('BTC-USD', Env.SOCKET_URL);
-  websocket.on('close', function(data){
-
-    winston.log('info', "Closing?");
-    winston.log('info', JSON.stringify(data));
-
-  });
-
-  websocket.on('message', function(data) {
-
-    createOrderHash(orders);
-
-    if(data.type == 'done'){
-
-
-
-      if(hashedOrders[data.order_id]){
-
-        winston.log('info', "");
-        winston.log('info', "------------------------------------------------------------");
-        winston.log('info', (new Date()).toString());
-        winston.log('info', data);
-
-        var closedOrder = hashedOrders[data.order_id];
-        winston.log('info', "Closed Order: " + JSON.stringify(closedOrder));
-
-        if(closedOrder.side == 'buy' ){
-
-          // Create a sell order at old price + $1
-          winston.log('info', "Closed buy order found.  Creating new sell order at price + 1");
-
-          var orderToCreate = {
-            size : closedOrder.size,
-            price : Number(closedOrder.price) + ( 1 * Env.GAP_AMOUNT) ,
-            side : "sell",
-            product_id : "BTC-USD"
-          };
-
-          authedClient.sell(orderToCreate, function(error, response, data){
-
-            if (error || response.statusCode != 200) {
-              winston.log('error', "Error creating new sell order: " + error);
-              winston.log('error', "Response: " + JSON.stringify(response));
-            }
-
-            // Add the new sell order to the existing order list
-            orderToCreate.id = data.id;
-            hashedOrders[data.id] = orderToCreate;
-            winston.log('info', "Created Order: " + JSON.stringify(orderToCreate));
-
-            // Delete the closed order
-            delete hashedOrders[closedOrder.id];
-
-          });
-
-
-        } else {
-
-          // Create a buy order at old price - $1
-          winston.log('info', "Closed sell order found.  Creating new buy order at price - 1");
-
-          var orderToCreate = {
-            size : closedOrder.size,
-            price : Number(closedOrder.price) - ( 1 * Env.GAP_AMOUNT) ,
-            side : "buy",
-            product_id : "BTC-USD"
-          };
-
-          authedClient.buy(orderToCreate, function(error, response, data){
-
-            if (error || response.statusCode != 200) {
-              winston.log('error', "Error creating new buy order: " + error);
-              winston.log('error', "Response: " + JSON.stringify(response));
-            }
-
-            // Add the new sell order to the existing order list
-            orderToCreate.id = data.id;
-            hashedOrders[data.id] = orderToCreate;
-            winston.log('info', "Created Order: " + JSON.stringify(orderToCreate));
-
-            // Delete the closed order
-            delete hashedOrders[closedOrder.id];
-
-          });
-
-        }
-
-
-      }
-    }
-
-  });
 }

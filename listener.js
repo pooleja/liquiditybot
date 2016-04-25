@@ -50,7 +50,7 @@ websocket.on('message', function(data) {
         }
 
         winston.log('info', "");
-        winston.log('info', "------------------------------------------------------------");        
+        winston.log('info', "------------------------------------------------------------");
         winston.log('info', data);
 
         var closedOrder = foundOrder;
@@ -68,13 +68,23 @@ websocket.on('message', function(data) {
             product_id : "BTC-USD"
           };
 
+          winston.log("info", JSON.stringify(orderToCreate));
+
           authedClient.sell(orderToCreate, function(error, response, data){
 
             if (error || response.statusCode != 200) {
               winston.log('error', "Error creating new sell order: " + error);
               winston.log('error', "Response: " + JSON.stringify(response));
-              writeRelease;
-              return;
+              winston.log('info', "Trying again...");
+
+              authedClient.sell(orderToCreate, function(error, response, data){
+                if (error || response.statusCode != 200) {
+                  winston.log('error', "Failed again... bailing");
+                  writeRelease;
+                  return;
+                }
+              });
+
             }
 
             // Add the new sell order to the existing order list
@@ -114,13 +124,22 @@ websocket.on('message', function(data) {
             product_id : "BTC-USD"
           };
 
+          winston.log("info", JSON.stringify(orderToCreate));
+
           authedClient.buy(orderToCreate, function(error, response, data){
 
             if (error || response.statusCode != 200) {
               winston.log('error', "Error creating new buy order: " + error);
               winston.log('error', "Response: " + JSON.stringify(response));
-              writeRelease();
-              return;
+              winston.log('info', "Trying again...");
+
+              authedClient.buy(orderToCreate, function(error, response, data){
+                if (error || response.statusCode != 200) {
+                  winston.log('error', "Failed again... bailing");
+                  writeRelease;
+                  return;
+                }
+              });
             }
 
             // Add the new sell order to the existing order list
