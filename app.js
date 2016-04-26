@@ -72,8 +72,8 @@ function createBids(){
           var size = amountPerOrder / orderPrice ;
 
           var orderToCreate = {
-            size : "" + size.toFixed(5),
-            price : "" + orderPrice.toFixed(5),
+            size : "" + size.toFixed(2),
+            price : "" + orderPrice.toFixed(2),
             side : "buy",
             product_id : "BTC-USD"
           };
