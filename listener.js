@@ -219,7 +219,8 @@ websocket.on('message', function(data) {
         }
 
       });
-
+      
+      writeRelease();
 
     });
 
