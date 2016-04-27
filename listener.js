@@ -74,39 +74,42 @@ websocket.on('message', function(data) {
             if (error || response.statusCode != 200) {
               winston.log('error', "Error creating new sell order: " + error);
               winston.log('error', "Response: " + JSON.stringify(response));
-              winston.log('info', "Trying again...");
+              winston.log('info', "Trying again in 1 second...");
 
-              authedClient.sell(orderToCreate, function(error, response, data){
-                if (error || response.statusCode != 200) {
-                  winston.log('error', "Failed again... bailing");
-                  writeRelease;
-                  return;
-                }
-              });
+              setTimeout(function() {
+                authedClient.sell(orderToCreate, function(error, response, data){
+                  if (error || response.statusCode != 200) {
+                    winston.log('error', "Failed again... bailing");
+                    writeRelease;
+                    return;
+                  }
+
+                  // Add the new sell order to the existing order list
+                  orderToCreate.id = data.id;
+                  winston.log('info', "Created Order: " + JSON.stringify(orderToCreate));
+
+                  Order(orderToCreate).save(function(error){
+
+                    if(error){
+                      winston.log('error', "Failed to create order" + orderToCreate.id + " with errro " + error);
+                      writeRelease();
+                      return;
+                    }
+
+                    closedOrder.remove(function(error){
+                      if(error){
+                        winston.log('error', "Failed to remove order" + closedOrder.id + " with errro " + error);
+                        writeRelease();
+                        return;
+                      }
+                    });
+
+                  });
+                  
+                });
+              }, 1000);
 
             }
-
-            // Add the new sell order to the existing order list
-            orderToCreate.id = data.id;
-            winston.log('info', "Created Order: " + JSON.stringify(orderToCreate));
-
-            Order(orderToCreate).save(function(error){
-
-              if(error){
-                winston.log('error', "Failed to create order" + orderToCreate.id + " with errro " + error);
-                writeRelease();
-                return;
-              }
-
-              closedOrder.remove(function(error){
-                if(error){
-                  winston.log('error', "Failed to remove order" + closedOrder.id + " with errro " + error);
-                  writeRelease();
-                  return;
-                }
-              });
-
-            });
 
           });
 
@@ -130,38 +133,41 @@ websocket.on('message', function(data) {
             if (error || response.statusCode != 200) {
               winston.log('error', "Error creating new buy order: " + error);
               winston.log('error', "Response: " + JSON.stringify(response));
-              winston.log('info', "Trying again...");
+              winston.log('info', "Trying again in 1 second...");
 
-              authedClient.buy(orderToCreate, function(error, response, data){
-                if (error || response.statusCode != 200) {
-                  winston.log('error', "Failed again... bailing");
-                  writeRelease;
-                  return;
-                }
-              });
+              setTimeout(function() {
+                authedClient.buy(orderToCreate, function(error, response, data){
+                  if (error || response.statusCode != 200) {
+                    winston.log('error', "Failed again... bailing");
+                    writeRelease;
+                    return;
+                  }
+
+                  // Add the new sell order to the existing order list
+                  orderToCreate.id = data.id;
+                  winston.log('info', "Created Order: " + JSON.stringify(orderToCreate));
+
+                  Order(orderToCreate).save(function(error){
+
+                    if(error){
+                      winston.log('error', "Failed to create order" + orderToCreate.id + " with errro " + error);
+                      writeRelease();
+                      return;
+                    }
+
+                    closedOrder.remove(function(error){
+                      if(error){
+                        winston.log('error', "Failed to remove order" + closedOrder.id + " with errro " + error);
+                        writeRelease();
+                        return;
+                      }
+                    });
+
+                  });
+
+                });
+              }, 1000);
             }
-
-            // Add the new sell order to the existing order list
-            orderToCreate.id = data.id;
-            winston.log('info', "Created Order: " + JSON.stringify(orderToCreate));
-
-            Order(orderToCreate).save(function(error){
-
-              if(error){
-                winston.log('error', "Failed to create order" + orderToCreate.id + " with errro " + error);
-                writeRelease();
-                return;
-              }
-
-              closedOrder.remove(function(error){
-                if(error){
-                  winston.log('error', "Failed to remove order" + closedOrder.id + " with errro " + error);
-                  writeRelease();
-                  return;
-                }
-              });
-
-            });
 
           });
 
@@ -169,7 +175,6 @@ websocket.on('message', function(data) {
 
       });
 
-      writeRelease();
 
     });
 
