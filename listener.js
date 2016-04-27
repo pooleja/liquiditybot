@@ -49,7 +49,6 @@ websocket.on('message', function(data) {
           return;
         }
 
-        winston.log('info', "");
         winston.log('info', "------------------------------------------------------------");
         winston.log('info', data);
 
@@ -62,7 +61,7 @@ websocket.on('message', function(data) {
           winston.log('info', "Closed buy order found.  Creating new sell order at price + 1");
 
           var orderToCreate = {
-            size : closedOrder.size.toFixed(2),
+            size : closedOrder.size,
             price : (Number(closedOrder.price) + ( 1 * Env.GAP_AMOUNT)).toFixed(2) ,
             side : "sell",
             product_id : "BTC-USD"
@@ -118,7 +117,7 @@ websocket.on('message', function(data) {
           winston.log('info', "Closed sell order found.  Creating new buy order at price - 1");
 
           var orderToCreate = {
-            size : closedOrder.size.toFixed(2),
+            size : closedOrder.size,
             price : (Number(closedOrder.price) - ( 1 * Env.GAP_AMOUNT)).toFixed(2) ,
             side : "buy",
             product_id : "BTC-USD"
