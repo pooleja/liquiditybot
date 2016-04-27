@@ -105,11 +105,33 @@ websocket.on('message', function(data) {
                     });
 
                   });
-                  
+
                 });
               }, 1000);
 
             }
+
+            // Add the new sell order to the existing order list
+            orderToCreate.id = data.id;
+            winston.log('info', "Created Order: " + JSON.stringify(orderToCreate));
+
+            Order(orderToCreate).save(function(error){
+
+              if(error){
+                winston.log('error', "Failed to create order" + orderToCreate.id + " with errro " + error);
+                writeRelease();
+                return;
+              }
+
+              closedOrder.remove(function(error){
+                if(error){
+                  winston.log('error', "Failed to remove order" + closedOrder.id + " with errro " + error);
+                  writeRelease();
+                  return;
+                }
+              });
+
+            });
 
           });
 
@@ -168,6 +190,29 @@ websocket.on('message', function(data) {
                 });
               }, 1000);
             }
+
+
+            // Add the new sell order to the existing order list
+            orderToCreate.id = data.id;
+            winston.log('info', "Created Order: " + JSON.stringify(orderToCreate));
+
+            Order(orderToCreate).save(function(error){
+
+              if(error){
+                winston.log('error', "Failed to create order" + orderToCreate.id + " with errro " + error);
+                writeRelease();
+                return;
+              }
+
+              closedOrder.remove(function(error){
+                if(error){
+                  winston.log('error', "Failed to remove order" + closedOrder.id + " with errro " + error);
+                  writeRelease();
+                  return;
+                }
+              });
+
+            });
 
           });
 
