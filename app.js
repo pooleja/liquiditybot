@@ -1,5 +1,5 @@
 var Env = require('./config/env.js');
-var CoinbaseExchange = require('coinbase-exchange');
+var Gdax = require('gdax');
 var async = require('async');
 
 var mongoose = require('mongoose');
@@ -11,7 +11,7 @@ winston.add(winston.transports.File, { filename: 'app.log' });
 
 winston.log('info', "Getting available balance.");
 
-var authedClient = new CoinbaseExchange.AuthenticatedClient(Env.ACCESS_KEY, Env.SECRET_KEY, Env.PASSPHRASE_KEY, Env.REST_URL);
+var authedClient = new Gdax.AuthenticatedClient(Env.ACCESS_KEY, Env.SECRET_KEY, Env.PASSPHRASE_KEY);
 
 if(Env.DELETE_PREVIOUS){
 
