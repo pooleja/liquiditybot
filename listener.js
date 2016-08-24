@@ -12,9 +12,9 @@ var ReadWriteLock = require('rwlock');
 var lock = new ReadWriteLock();
 
 
-var CoinbaseExchange = require('coinbase-exchange');
-var authedClient = new CoinbaseExchange.AuthenticatedClient(Env.ACCESS_KEY, Env.SECRET_KEY, Env.PASSPHRASE_KEY, Env.REST_URL);
-var websocket = new CoinbaseExchange.WebsocketClient('BTC-USD', Env.SOCKET_URL);
+var Gdax = require('gdax');
+var authedClient = new Gdax.AuthenticatedClient(Env.ACCESS_KEY, Env.SECRET_KEY, Env.PASSPHRASE_KEY);
+var websocket = new Gdax.WebsocketClient('BTC-USD');
 
 
 websocket.on('close', function(data){
@@ -219,7 +219,7 @@ websocket.on('message', function(data) {
         }
 
       });
-      
+
       writeRelease();
 
     });
